@@ -1,0 +1,11 @@
+# The layer this bundle contributes. When a profile lists hooks-adapter,
+# this row is inserted into the plugin tree and the harness calls
+# apply(ctx, config) from dsh/plugin.js with the config below.
+- insert:
+    - id: hooks-adapter
+      name: hooks-adapter
+      config:
+        # Discover the standard hook config locations in the working
+        # directory and the user home (see docs/CONFIG.md). Set to false
+        # and use configPath to pin a single file instead.
+        discover: true

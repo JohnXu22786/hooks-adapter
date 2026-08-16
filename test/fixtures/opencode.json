@@ -1,0 +1,10 @@
+{
+  "hooks": {
+    "tool.execute.before": [
+      { "matcher": "bash", "hooks": [{ "type": "command", "command": "echo oc-before", "timeout": 4 }] }
+    ],
+    "session.created": [
+      { "hooks": [{ "type": "subagent", "prompt": "hello $ARGUMENTS" }] }
+    ]
+  }
+}

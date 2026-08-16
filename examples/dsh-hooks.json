@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "events": {
+    "tool:before": [
+      {
+        "matcher": "bash",
+        "hooks": [
+          { "type": "shell", "command": "node ./examples/hooks/guard-bash.mjs", "timeout": 10, "onError": "block" }
+        ]
+      }
+    ],
+    "prompt:submit": [
+      {
+        "hooks": [
+          {
+            "type": "webhook",
+            "url": "http://127.0.0.1:8765/hook",
+            "headers": { "X-Token": "$HOOKS_TOKEN" },
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "session:start": [
+      {
+        "hooks": [
+          {
+            "type": "oracle",
+            "prompt": "Describe the session start in one line: $ARGUMENTS",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "turn:stop": [
+      {
+        "hooks": [
+          {
+            "type": "proxy",
+            "prompt": "Summarize the session so far: $ARGUMENTS"
+          }
+        ]
+      }
+    ]
+  }
+}

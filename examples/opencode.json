@@ -1,0 +1,13 @@
+{
+  "hooks": {
+    "tool.execute.before": [
+      {
+        "matcher": "bash",
+        "hooks": [{ "type": "command", "command": "node ./examples/hooks/guard-bash.mjs", "timeout": 10 }]
+      }
+    ],
+    "session.created": [
+      { "hooks": [{ "type": "subagent", "prompt": "Say hello to the new session: $ARGUMENTS" }] }
+    ]
+  }
+}

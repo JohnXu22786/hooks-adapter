@@ -1,0 +1,49 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write",
+        "hooks": [
+          { "type": "command", "command": "echo guard", "timeout": 10 },
+          { "type": "prompt", "prompt": "Approve this tool call? $ARGUMENTS", "timeout": 30 }
+        ]
+      },
+      {
+        "matcher": "WebFetch",
+        "hooks": [
+          { "type": "http", "url": "https://example.invalid/hook", "timeout": 5 }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "cat ${CLAUDE_PROJECT_DIR}/context.md" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "notify-send done" },
+          { "type": "agent", "prompt": "Summarize the session: $ARGUMENTS" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "never-matches",
+        "hooks": [
+          { "type": "command", "command": "echo prompt-hook" }
+        ]
+      }
+    ],
+    "UnknownEvent": [
+      {
+        "hooks": [
+          { "type": "command", "command": "echo ghost" }
+        ]
+      }
+    ]
+  }
+}

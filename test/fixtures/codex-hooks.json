@@ -1,0 +1,14 @@
+{
+  "$comment": "Codex hooks.json layout: event name -> matcher groups.",
+  "hooks": {
+    "SessionStart": [
+      { "matcher": ".*", "hooks": [{ "type": "command", "command": "echo started" }] }
+    ],
+    "PreToolUse": [
+      { "matcher": "^bash$", "hooks": [{ "type": "command", "command": "guard", "timeout": 9 }] }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "echo stopped" }] }
+    ]
+  }
+}

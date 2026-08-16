@@ -1,0 +1,17 @@
+{
+  "$comment": "Codex 方言示例：matcher 一律按正则解释",
+  "hooks": {
+    "SessionStart": [
+      { "matcher": ".*", "hooks": [{ "type": "command", "command": "echo [codex] session start" }] }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "^bash$",
+        "hooks": [{ "type": "command", "command": "node ./examples/hooks/guard-bash.mjs", "timeout": 10 }]
+      }
+    ],
+    "Stop": [
+      { "hooks": [{ "type": "command", "command": "echo [codex] turn stop" }] }
+    ]
+  }
+}

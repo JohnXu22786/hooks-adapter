@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "events": {
+    "tool:before": [
+      {
+        "matcher": "bash|write",
+        "hooks": [
+          { "type": "shell", "command": "echo native-guard", "onError": "block" }
+        ]
+      }
+    ],
+    "prompt:submit": [
+      {
+        "hooks": [
+          {
+            "type": "webhook",
+            "url": "https://example.invalid/native",
+            "headers": { "X-Token": "$API_TOKEN" },
+            "timeout": 3
+          }
+        ]
+      }
+    ],
+    "session:start": [
+      {
+        "hooks": [
+          { "type": "oracle", "prompt": "Evaluate: $ARGUMENTS", "timeout": 10 }
+        ]
+      }
+    ],
+    "turn:stop": [
+      {
+        "hooks": [
+          { "type": "proxy", "prompt": "Summarize the session." }
+        ]
+      }
+    ]
+  }
+}

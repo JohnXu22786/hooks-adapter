@@ -1,0 +1,33 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node ./examples/hooks/guard-bash.mjs", "timeout": 10 }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          { "type": "command", "command": "echo [session] started in ${CLAUDE_PROJECT_DIR}" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "prompt", "prompt": "Is this prompt allowed? Answer {\"ok\":true} or {\"ok\":false,\"reason\":\"...\"}: $ARGUMENTS", "timeout": 30 }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "echo [turn] finished" }
+        ]
+      }
+    ]
+  }
+}
