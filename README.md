@@ -1,36 +1,38 @@
+[简体中文](README.zh.md)
+
 # hooks-adapter
 
-一个面向 DeepSeek Harness（dsh）的 **hooks 配置兼容层**：读取主流 agent harness 已有的 hooks 配置文件（如 `.claude/settings.json` 中的 hooks 声明、`.codex/hooks.json`、`opencode.json` 的 hooks 段），把它们的生命周期事件映射到 dsh 的扩展点，并执行 **shell / webhook / oracle / proxy** 四类 handler——让同一份 hooks 配置在不同的 harness 之间原样复用。
+A **hooks configuration compatibility layer** for DeepSeek Harness (dsh): it reads existing hooks config files from mainstream agent harnesses (such as the hooks declarations in `.claude/settings.json`, `.codex/hooks.json`, and the hooks section of `opencode.json`), maps their lifecycle events to dsh extension points, and executes four kinds of handlers — **shell / webhook / oracle / proxy** — so the same hooks config can be reused as-is across different harnesses.
 
-- 零运行时依赖（Node ≥ 18，纯 ESM + JSDoc 类型）
-- 配置只读不迁移：你已有的 hooks 声明不用改写
-- 四类 handler 全支持：命令执行、HTTP 回调、LLM 评估、子代理委派
-- 超时控制、失败降级策略、友好的配置校验（`validate` 子命令）
-- 三种接入方式：dsh 插件（Cordis `apply`）、stdio JSON-lines 协议（任意宿主）、一次性 CLI
+- Zero runtime dependencies (Node ≥ 18, pure ESM + JSDoc types)
+- Config is read-only, not migrated: your existing hooks declarations stay unchanged
+- All four handler kinds supported: command execution, HTTP callbacks, LLM evaluation, subagent delegation
+- Timeout control, failure degradation policy, and friendly config validation (`validate` subcommand)
+- Three integration modes: dsh plugin (Cordis `apply`), stdio JSON-lines protocol (any host), one-shot CLI
 
 ```
 hooks-adapter/
-├── package.json        # dsh bundle 清单（dsh.bundle + exports）
-├── cordis.patch.yml    # 组合包层：向插件树插入本插件
-├── dsh/plugin.js       # dsh 入口：Cordis 插件（name + apply(ctx, config)）
-├── lib/                # 运行时核心（可独立于 dsh 使用）
-│   ├── index.js        # CLI 入口 + 编程接口导出
-│   ├── events.js       # 规范事件目录 + 四方言映射表 + matcher 语义
-│   ├── discover.js     # 配置文件发现（全局/项目/本地）
-│   ├── parse.js        # 四方言解析器（全部走诊断，不抛错）
-│   ├── config.js       # 运行时组装：合并、disableAllHooks、默认值
-│   ├── contract.js     # stdin JSON 契约构造 + 响应解码 + 决策折叠
-│   ├── execute.js      # 四类 handler 执行器 + 超时 + 进程树清理
-│   ├── dispatch.js     # 分发管道：matcher 匹配、顺序执行、blockable 约束
-│   └── serve.js        # stdio JSON-lines 协议服务
-├── docs/               # 配置格式、事件映射、契约、接入说明、CLI 指南
-├── examples/           # 四方言示例配置 + 本地 mock LLM
-└── test/               # node:test 测试（107 项）
+├── package.json        # dsh bundle manifest (dsh.bundle + exports)
+├── cordis.patch.yml    # composite package layer: inserts this plugin into the plugin tree
+├── dsh/plugin.js       # dsh entry: Cordis plugin (name + apply(ctx, config))
+├── lib/                # runtime core (usable independently of dsh)
+│   ├── index.js        # CLI entry + programmatic API exports
+│   ├── events.js       # canonical event catalog + four-dialect mapping table + matcher semantics
+│   ├── discover.js     # config file discovery (global/project/local)
+│   ├── parse.js        # four-dialect parsers (all go through diagnostics, never throw)
+│   ├── config.js       # runtime assembly: merging, disableAllHooks, defaults
+│   ├── contract.js     # stdin JSON contract construction + response decoding + decision folding
+│   ├── execute.js      # four-kind handler executor + timeout + process tree cleanup
+│   ├── dispatch.js     # dispatch pipeline: matcher matching, ordered execution, blockable constraints
+│   └── serve.js        # stdio JSON-lines protocol server
+├── docs/               # config formats, event mapping, contract, integration notes, CLI guide
+├── examples/           # four-dialect example configs + local mock LLM
+└── test/               # node:test tests (107 items)
 ```
 
-## 它能做什么
+## What It Can Do
 
-在 `.claude/settings.json` 里声明 hooks（无论你之前为哪个 harness 写的），在 dsh 中它们照常生效：
+Declare hooks in `.claude/settings.json` (no matter which harness you wrote them for) and they keep working in dsh:
 
 ```json
 {
@@ -50,89 +52,103 @@ hooks-adapter/
 }
 ```
 
-配置文件须为严格 JSON（不支持注释）；`examples/` 下有完整的四方言示例。
+Config files must be strict JSON (no comments); see `examples/` for complete four-dialect examples.
 
-- `PreToolUse` → 工具执行前的拦截点：handler 退出码 2 / JSON `decision: "block"` 会**阻止**工具调用（或转为 ask 交人工确认）
-- `PostToolUse` / `PostToolUseFailure` → 工具执行后（互斥触发）：拒绝写回为结果反馈、追加上下文
-- `UserPromptSubmit` / `SessionStart` / `Stop` / `SubagentStart` / `SubagentStop` / `SessionEnd` → 注入上下文、拒绝提示词、强制模型继续
-- `Notification` / `PreCompact` → 手动或经 stdio 协议触发
+- `PreToolUse` → interception point before tool execution: handler exit code 2 / JSON `decision: "block"` will **block** the tool call (or turn it into ask for human confirmation)
+- `PostToolUse` / `PostToolUseFailure` → after tool execution (mutually exclusive triggers): reject the write-back as result feedback, append context
+- `UserPromptSubmit` / `SessionStart` / `Stop` / `SubagentStart` / `SubagentStop` / `SessionEnd` → inject context, reject prompts, force the model to continue
+- `Notification` / `PreCompact` → triggered manually or via the stdio protocol
 
-四类 handler（配置里的 `type` 字段按各 harness 习惯书写，内部归一）：
+The four handler kinds (the `type` field in config follows each harness's conventions; normalized internally):
 
-| 配置 type | 内部 kind | 行为 | 默认超时 |
+| Config type | Internal kind | Behavior | Default timeout |
 | --- | --- | --- | --- |
-| `command` | `shell` | 起 shell 进程，stdin 喂 JSON 契约 | 600s |
-| `http` | `webhook` | POST JSON 到 URL，响应体即决策 | 600s |
-| `prompt` | `oracle` | 调 LLM 端点评估，`{ok:false}` 即拒绝 | 30s |
-| `agent` / `subagent` | `proxy` | 委派给子代理 runner（可配置命令） | 60s |
+| `command` | `shell` | spawn a shell process, feed the JSON contract on stdin | 600s |
+| `http` | `webhook` | POST JSON to a URL, the response body is the decision | 600s |
+| `prompt` | `oracle` | call an LLM endpoint to evaluate, `{ok:false}` rejects | 30s |
+| `agent` / `subagent` | `proxy` | delegate to a subagent runner (configurable command) | 60s |
 
-## 快速开始
+## Quick Start
 
-### 方式一：dsh 插件（推荐）
+### Mode one: dsh plugin (recommended)
 
 ```sh
-# 在包含本插件 checkout 的目录中
+# From a directory containing this plugin checkout
 dsh plugin --profile demo add ./hooks-adapter
 dsh --profile demo
 ```
 
-加载后插件自动发现项目与用户目录下的 hooks 配置（见下）。也可在 profile 的 `cordis.patch.yml` 中覆盖配置行：
+After loading, the plugin automatically discovers hooks configs in project and user directories (see below). You can also override the config line in the profile's `cordis.patch.yml`:
 
 ```yaml
 - replace:
     - id: hooks-adapter
       config:
-        configPath: /abs/path/to/hooks.json   # 固定使用单一文件（跳过发现）
+        configPath: /abs/path/to/hooks.json   # pin a single file (skip discovery)
         discover: false
         llm: { baseUrl: "https://api.example.com/v1", model: "eval-small" }
         proxy: { command: "dsh run --quiet" }
 ```
 
-接入细节见 [docs/INTEGRATION.md](docs/INTEGRATION.md)。
+Integration details: [docs/INTEGRATION.md](docs/INTEGRATION.md).
 
-### 方式二：stdio 协议（任意宿主）
+## Installing in DSH
+
+Install directly from the GitHub repository with the dsh plugin command:
+
+```sh
+dsh plugin --profile demo add github:JohnXu22786/hooks-adapter
+```
+
+The package is a dsh bundle (`dsh.bundle.patch` → `cordis.patch.yml`); once added, it inserts itself into the plugin tree and automatically discovers hooks configs on the next dsh run. Remove it with:
+
+```sh
+dsh plugin --profile demo remove hooks-adapter
+```
+
+### Mode two: stdio protocol (any host)
 
 ```sh
 echo '{"op":"ping"}' | node lib/index.js listen --config hooks.json
 echo '{"op":"dispatch","event":"PreToolUse","payload":{"tool_name":"Bash","tool_input":{}}}' | node lib/index.js listen
 ```
 
-协议说明见 [docs/CONTRACT.md](docs/CONTRACT.md#stdio-协议)。
+Protocol details: [docs/CONTRACT.md](docs/CONTRACT.md#stdio-协议).
 
-### 方式三：一次性 CLI
+### Mode three: one-shot CLI
 
 ```sh
-node lib/index.js validate            # 检查所有可发现的配置，退出码 0/1
+node lib/index.js validate            # check all discoverable configs, exit code 0/1
 node lib/index.js run --event PreToolUse --payload payload.json
-node lib/index.js dump                # 打印合并后的生效配置
-node lib/index.js list                # 列出发现到的配置文件
+node lib/index.js dump                # print the merged effective config
+node lib/index.js list                # list discovered config files
 ```
 
-## 配置从哪里来
+## Where the Config Comes From
 
-自动发现并按顺序合并（后者追加同名事件的组；`disableAllHooks` 以最具体的文件为准）：
+Auto-discovered and merged in order (later files append groups for same-named events; `disableAllHooks` follows the most specific file):
 
-| 顺序 | 文件 | 方言 |
+| Order | File | Dialect |
 | --- | --- | --- |
 | 1 | `~/.claude/settings.json` | claude |
 | 2 | `~/.codex/hooks.json` | codex |
 | 3 | `~/.config/opencode/opencode.json` | opencode |
 | 4 | `~/.config/hooks-adapter/hooks.json` | native |
-| 5 | `<项目>/.claude/settings.json` | claude |
-| 6 | `<项目>/.codex/hooks.json` | codex |
-| 7 | `<项目>/opencode.json` | opencode |
-| 8 | `<项目>/.dsh-hooks.json` | native |
-| 9 | `<项目>/.claude/settings.local.json` | claude |
+| 5 | `<project>/.claude/settings.json` | claude |
+| 6 | `<project>/.codex/hooks.json` | codex |
+| 7 | `<project>/opencode.json` | opencode |
+| 8 | `<project>/.dsh-hooks.json` | native |
+| 9 | `<project>/.claude/settings.local.json` | claude |
 
-- 环境变量 `HOOKS_ADAPTER_CONFIG`（等价于 `--config`）与 `HOOKS_ADAPTER_HOME`（等价于 `--home`）
-- 任意文件缺失都静默跳过；**存在的文件若有问题，只产生诊断**，不阻止启动
-- 配置文件格式细节见 [docs/CONFIG.md](docs/CONFIG.md)
+- Environment variables `HOOKS_ADAPTER_CONFIG` (same as `--config`) and `HOOKS_ADAPTER_HOME` (same as `--home`)
+- Any missing file is silently skipped; **if an existing file has issues, it only produces diagnostics**, it never blocks startup
+- Config file format details: [docs/CONFIG.md](docs/CONFIG.md)
 
-## 事件映射
+## Event Mapping
 
-每种 harness 的事件名映射到一套**规范事件**（`session:start`、`tool:before`……），再绑定到 dsh 的扩展点：
+Every harness's event names map to a set of **canonical events** (`session:start`, `tool:before`, ...), which then bind to dsh extension points:
 
-| 规范事件 | claude 方言 | codex 方言 | opencode 方言 | dsh 扩展点 |
+| Canonical event | claude dialect | codex dialect | opencode dialect | dsh extension point |
 | --- | --- | --- | --- | --- |
 | `session:start` | `SessionStart` | `SessionStart` | `session.created` | `agent/session-start` |
 | `session:end` | `SessionEnd` | `SessionEnd` | `session.deleted` | `session/disposed` |
@@ -142,27 +158,27 @@ node lib/index.js list                # 列出发现到的配置文件
 | `turn:stop` | `Stop` | `Stop` | `session.idle` | `agent/turn-stopping` |
 | `subagent:start` | `SubagentStart` | `SubagentStart` | `tool.execute.before.subagent` | `subagent/start` |
 | `subagent:end` | `SubagentStop` | `SubagentStop` | `tool.execute.after.subagent` | `subagent/end` |
-| `notice` | `Notification` | `Notification` | `notification` | 手动 / stdio |
-| `compact:before` | `PreCompact` | — | `experimental.session.compacting` | 手动 / stdio |
+| `notice` | `Notification` | `Notification` | `notification` | manual / stdio |
+| `compact:before` | `PreCompact` | — | `experimental.session.compacting` | manual / stdio |
 
-完整语义（可阻塞性、matcher 规则、载荷字段）见 [docs/EVENTS.md](docs/EVENTS.md)。
+Full semantics (blockability, matcher rules, payload fields): [docs/EVENTS.md](docs/EVENTS.md).
 
-## 契约
+## Contract
 
-- **stdin JSON**：`session_id`、`transcript_path`、`cwd`、`hook_event_name`、`permission_mode` + 事件字段（`tool_name`/`tool_input`/`tool_use_id`/`tool_response`/`prompt`/`source`……）
-- **退出码**：`0` = 放行（stdout 为 JSON 时解析决策）；`2` = 拒绝（stderr 为原因）；其他非零 = 非阻塞错误
-- **stdout JSON**：`decision`、`continue`/`stopReason`、`systemMessage`、`hookSpecificOutput.permissionDecision`（`allow`/`deny`/`ask`）、`additionalContext`、`updatedInput`；oracle 应答 `{ok: true|false, reason}`
-- **多 hook 折叠**：`deny > ask > allow`；任一 `continue:false` 即停；上下文按 hook 顺序累加
-- 细节与 stdio 协议见 [docs/CONTRACT.md](docs/CONTRACT.md)
+- **stdin JSON**: `session_id`, `transcript_path`, `cwd`, `hook_event_name`, `permission_mode` + event fields (`tool_name`/`tool_input`/`tool_use_id`/`tool_response`/`prompt`/`source` ...)
+- **Exit codes**: `0` = allow (when stdout is JSON, the decision is parsed from it); `2` = block (stderr is the reason); any other non-zero = non-blocking error
+- **stdout JSON**: `decision`, `continue`/`stopReason`, `systemMessage`, `hookSpecificOutput.permissionDecision` (`allow`/`deny`/`ask`), `additionalContext`, `updatedInput`; oracle answers `{ok: true|false, reason}`
+- **Multi-hook folding**: `deny > ask > allow`; any `continue:false` stops; context accumulates in hook order
+- Details and the stdio protocol: [docs/CONTRACT.md](docs/CONTRACT.md)
 
-## 测试
+## Testing
 
 ```sh
 node --test
 ```
 
-（默认测试发现模式即可跑全部 107 项测试；辅助脚本在 `test-support/`，不会被误当测试。）
+(The default test-discovery mode runs all 107 tests; helper scripts live in `test-support/` and are not mistaken for tests.)
 
-## 许可证
+## License
 
-MIT
+Released under the [MIT License](LICENSE).
