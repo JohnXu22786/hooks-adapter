@@ -27,7 +27,7 @@ hooks-adapter/
 │   └── serve.js        # stdio JSON-lines protocol server
 ├── docs/               # config formats, event mapping, contract, integration notes, CLI guide
 ├── examples/           # four-dialect example configs + local mock LLM
-└── test/               # node:test tests (107 items)
+└── test/               # node:test tests (111 items)
 ```
 
 ## What It Can Do
@@ -177,7 +177,7 @@ Full semantics (blockability, matcher rules, payload fields): [docs/EVENTS.md](d
 node --test
 ```
 
-(The default test-discovery mode runs all 107 tests; helper scripts live in `test-support/` and are not mistaken for tests.)
+(The default test-discovery mode runs all 111 tests; helper scripts live in `test-support/` and are not mistaken for tests.)
 
 ## License
 

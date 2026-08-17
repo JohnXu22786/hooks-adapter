@@ -27,7 +27,7 @@ hooks-adapter/
 │   └── serve.js        # stdio JSON-lines 协议服务
 ├── docs/               # 配置格式、事件映射、契约、接入说明、CLI 指南
 ├── examples/           # 四方言示例配置 + 本地 mock LLM
-└── test/               # node:test 测试（107 项）
+└── test/               # node:test 测试（111 项）
 ```
 
 ## 它能做什么
@@ -177,7 +177,7 @@ node lib/index.js list                # 列出发现到的配置文件
 node --test
 ```
 
-（默认测试发现模式即可跑全部 107 项测试；辅助脚本在 `test-support/`，不会被误当测试。）
+（默认测试发现模式即可跑全部 111 项测试；辅助脚本在 `test-support/`，不会被误当测试。）
 
 ## 许可证
 
