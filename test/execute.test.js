@@ -190,6 +190,24 @@ test('webhook: timeout yields an error outcome', async () => {
   await server.close()
 })
 
+test('webhook: an already-aborted host signal aborts immediately', async () => {
+  const server = await mockServer(async () => {
+    await new Promise(() => {}) // never resolves
+  })
+  try {
+    const aborted = new AbortController()
+    aborted.abort()
+    const hook = { id: 't', kind: 'webhook', spec: { url: server.url, headers: {} }, onError: 'warn', timeoutSec: 60 }
+    const started = Date.now()
+    const { outcome } = await executeHook(runtimeOptions(), hook, { ...baseCtx, signal: aborted.signal })
+    assert.equal(outcome.exitCode, undefined)
+    assert.match(outcome.stderr, /aborted by the host/i)
+    assert.ok(Date.now() - started < 5000, 'did not wait for the timeout')
+  } finally {
+    await server.close()
+  }
+})
+
 test('webhook: $ENV tokens in headers are interpolated', async () => {
   const old = process.env.API_TOKEN
   process.env.API_TOKEN = 'tk-123'
