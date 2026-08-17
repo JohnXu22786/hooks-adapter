@@ -338,3 +338,17 @@ test('default timeouts per kind', () => {
   assert.equal(DEFAULT_TIMEOUT_SEC.oracle, 30)
   assert.equal(DEFAULT_TIMEOUT_SEC.proxy, 60)
 })
+
+test('timeout resolution: per-hook beats global, global beats kind default', async () => {
+  const slow = { id: 't', kind: 'shell', spec: { command: `node "${script('slow.mjs')}"` }, onError: 'warn' }
+  // no per-hook timeout -> the global default applies (kind default is 600s)
+  const globalStart = Date.now()
+  const globalOnly = await executeHook(runtimeOptions({ timeoutSec: 1 }), slow, baseCtx)
+  assert.match(globalOnly.outcome.stderr, /timed out/i)
+  assert.ok(Date.now() - globalStart < 5000)
+  // a small per-hook timeout beats a large global one
+  const hookStart = Date.now()
+  const hookWins = await executeHook(runtimeOptions({ timeoutSec: 120 }), { ...slow, timeoutSec: 1 }, baseCtx)
+  assert.match(hookWins.outcome.stderr, /timed out/i)
+  assert.ok(Date.now() - hookStart < 5000)
+})
