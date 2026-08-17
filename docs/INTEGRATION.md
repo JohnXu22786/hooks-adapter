@@ -89,7 +89,7 @@ dsh --profile demo
 
 ## 其他宿主接入
 
-不跑 dsh 也可以：用 `listen` 模式的 stdio 协议（[CONTRACT.md](docs/CONTRACT.md#stdio-协议)），或直接 `import` `lib/` 的编程接口：
+不跑 dsh 也可以：用 `listen` 模式的 stdio 协议（[CONTRACT.md](CONTRACT.md#stdio-协议)），或直接 `import` `lib/` 的编程接口：
 
 ```js
 import { loadRuntime, dispatchEvent } from 'hooks-adapter/cli'

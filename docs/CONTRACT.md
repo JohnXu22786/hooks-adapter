@@ -90,9 +90,9 @@ oracle handler 要求 LLM 端点在 `choices[0].message.content` 返回一个 JS
 - 宿主传入的取消信号（AbortSignal）同样生效：宿主中止（如 dsh 插件卸载、回合取消）时立即强杀进程树 / 中止请求
 - 基础设施失败（spawn 失败、超时、HTTP 非 2xx、oracle/proxy 未配置）按 `onError` 策略处理：`warn`（默认，记日志继续）/ `block`（升级为拒绝）/ `ignore`（静默）
 
-## stdio 协议（listen 模式）
+## stdio 协议
 
-`node lib/index.js listen` 提供行分隔 JSON 协议（stdin 进、stdout 出，日志走 stderr）：
+`node lib/index.js listen` 提供行分隔 JSON 协议（stdin 进、stdout 出，日志走 stderr；listen 模式，任意宿主可用）：
 
 | 请求 | 响应 |
 | --- | --- |
