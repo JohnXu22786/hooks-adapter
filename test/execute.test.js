@@ -267,6 +267,21 @@ test('oracle: non-JSON answer is an error outcome', async () => {
   await server.close()
 })
 
+test('oracle: a markdown code-fenced JSON answer is parsed, not rejected', async () => {
+  const server = await mockServer(async () => ({
+    body: { choices: [{ message: { content: '```json\n{"ok":false,"reason":"fenced no"}\n```' } }] },
+  }))
+  try {
+    const options = runtimeOptions({ llm: { baseUrl: server.url, model: 'mock' } })
+    const hook = { id: 't', kind: 'oracle', spec: { prompt: 'eval' }, onError: 'warn', timeoutSec: 10 }
+    const { outcome } = await executeHook(options, hook, baseCtx)
+    assert.equal(outcome.decision, 'deny')
+    assert.equal(outcome.reason, 'fenced no')
+  } finally {
+    await server.close()
+  }
+})
+
 // --- proxy handler ---
 
 test('proxy: renders the prompt, passes it on stdin and via HOOK_PROMPT', async () => {

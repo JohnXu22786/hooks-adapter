@@ -70,6 +70,7 @@ oracle handler 要求 LLM 端点在 `choices[0].message.content` 返回一个 JS
 - `ok: false` → 拒绝（原因取 `reason`，缺省 `denied by evaluation`）
 - `ok: true` → 放行
 - 其余字段（`decision`、`continue`、`hookSpecificOutput` 等）同样按上表生效
+- LLM 常把应答包在 ```` ```json ```` 代码块里：解析前自动剥离首尾围栏；剥离后仍非 JSON → 非阻塞错误
 - 非 JSON 应答 / HTTP 非 2xx / 超时 → 非阻塞错误
 
 ## 折叠规则
