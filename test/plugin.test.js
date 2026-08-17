@@ -88,6 +88,16 @@ async function disposeAll(harness) {
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 250))
 
+/** Poll until `predicate` holds; fails after `ms` instead of waiting a fixed tick. */
+async function waitFor(predicate, what, ms = 5000) {
+  const deadline = Date.now() + ms
+  while (Date.now() < deadline) {
+    if (predicate()) return
+    await new Promise((resolve) => setTimeout(resolve, 25))
+  }
+  throw new Error(`timed out waiting for ${what}`)
+}
+
 test('plugin: subscribes to the harness extension points', () => {
   const dir = makeProject()
   const harness = makeHarness()
@@ -187,8 +197,7 @@ test('plugin: SessionStart context is injected once the detached hook settles', 
   apply(harness.ctx, { configPath: join(dir, '.claude', 'settings.json') })
   const agent = makeAgent()
   harness.handlers.get('agent/session-start')({ agent, source: 'new' })
-  await tick()
-  assert.equal(agent.injected.length, 1)
+  await waitFor(() => agent.injected.length === 1, 'session-start injection')
   assert.equal(agent.injected[0].role, 'user')
   assert.ok(agent.injected[0].content[0].text.startsWith('got:{"session_id"'))
   await disposeAll(harness)
