@@ -167,6 +167,31 @@ test('bad onError values are diagnosed', () => {
   assert.ok(diagnostics.some((d) => d.message.includes('onError')))
 })
 
+test('headers and env must be string maps, otherwise diagnosed', () => {
+  const { groups, diagnostics } = parseRaw(
+    {
+      events: {
+        'tool:before': [
+          {
+            hooks: [
+              { type: 'shell', command: 'a', env: { MODE: 1 } },
+              { type: 'webhook', url: 'https://example.invalid/h', headers: { 'X-Token': null } },
+            ],
+          },
+        ],
+      },
+    },
+    'native',
+  )
+  // both hooks remain usable (only the malformed extra field is diagnosed)
+  assert.equal(groups.length, 1)
+  assert.equal(groups[0].hooks.length, 2)
+  assert.equal(groups[0].hooks[0].env, undefined)
+  assert.equal(groups[0].hooks[1].spec.headers, undefined)
+  assert.ok(diagnostics.some((d) => d.message.includes('env must be a string map')))
+  assert.ok(diagnostics.some((d) => d.message.includes('headers must be a string map')))
+})
+
 test('non-string matcher is an error, not a silent match-all', () => {
   const { groups, diagnostics } = parseRaw(
     { hooks: { PreToolUse: [{ matcher: 123, hooks: [{ type: 'command', command: 'a' }] }] } },
