@@ -19,7 +19,8 @@
     "docs",
     "examples",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "README.zh.md"
   ],
   "engines": {
     "node": ">=18"
